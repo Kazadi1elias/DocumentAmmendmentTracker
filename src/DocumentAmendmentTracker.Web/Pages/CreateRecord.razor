@@ -1,14 +1,16 @@
 @page "/records/new"
+@attribute [Authorize]
 @inject IRecordService RecordService
 @inject IOptions<FileStorageOptions> FileStorageOptionsAccessor
 @inject NavigationManager Navigation
-@inject NotificationService NotificationService
+@inject SweetAlertService Swal
 @using DocumentAmendmentTracker.Web.Options
 @using Microsoft.Extensions.Options
 
 <PageTitle>New Record</PageTitle>
 
 <h1>Create Record</h1>
+<p class="timeline-amendment-meta">Creating as: @_currentUser</p>
 
 <RadzenTemplateForm TItem="object" Data="@(new object())" Submit="@OnSubmitAsync">
     <RadzenFieldset Text="Record details">
@@ -19,10 +21,6 @@
         <div class="rz-mb-3">
             <RadzenLabel Text="Title" Component="Title" />
             <RadzenTextBox @bind-Value="_title" Name="Title" Style="width:100%" />
-        </div>
-        <div class="rz-mb-3">
-            <RadzenLabel Text="Created By" Component="CreatedBy" />
-            <RadzenTextBox @bind-Value="_createdBy" Name="CreatedBy" Style="width:100%" />
         </div>
         <div class="rz-mb-3">
             <RadzenLabel Text="Initial notes (optional)" Component="Notes" />
@@ -55,13 +53,24 @@
 </RadzenTemplateForm>
 
 @code {
+    [CascadingParameter] private Task<Microsoft.AspNetCore.Components.Authorization.AuthenticationState>? AuthStateTask { get; set; }
+
+    private string _currentUser = string.Empty;
     private string _recordNumber = string.Empty;
     private string _title = string.Empty;
-    private string _createdBy = string.Empty;
     private string _notes = string.Empty;
     private string? _error;
     private bool _saving;
     private List<IBrowserFile> _selectedFiles = new();
+
+    protected override async Task OnInitializedAsync()
+    {
+        if (AuthStateTask is not null)
+        {
+            var authState = await AuthStateTask;
+            _currentUser = authState.User.Identity?.Name ?? "unknown";
+        }
+    }
 
     private void OnFilesSelected(InputFileChangeEventArgs e)
     {
@@ -72,9 +81,9 @@
     {
         _error = null;
 
-        if (string.IsNullOrWhiteSpace(_recordNumber) || string.IsNullOrWhiteSpace(_title) || string.IsNullOrWhiteSpace(_createdBy))
+        if (string.IsNullOrWhiteSpace(_recordNumber) || string.IsNullOrWhiteSpace(_title))
         {
-            _error = "Record Number, Title and Created By are required.";
+            _error = "Record Number and Title are required.";
             return;
         }
 
@@ -85,22 +94,21 @@
         {
             foreach (var file in _selectedFiles)
             {
-                uploads.Add(new AttachmentUpload
-                {
-                    FileName = file.Name,
-                    ContentType = string.IsNullOrEmpty(file.ContentType) ? "application/octet-stream" : file.ContentType,
-                    SizeBytes = file.Size,
-                    Content = file.OpenReadStream(maxSize),
-                });
+                uploads.Add(new AttachmentUpload(
+                    file.Name,
+                    string.IsNullOrEmpty(file.ContentType) ? "application/octet-stream" : file.ContentType,
+                    file.Size,
+                    file.OpenReadStream(maxSize)));
             }
 
-            var record = await RecordService.CreateRecordAsync(_recordNumber, _title, _createdBy, _notes, uploads);
-            NotificationService.Notify(NotificationSeverity.Success, "Record created", $"Record {record.RecordNumber} was created.");
+            var record = await RecordService.CreateRecordAsync(_recordNumber, _title, _currentUser, _notes, uploads);
+            await Swal.FireAsync("Record created", $"Record {record.RecordNumber} was created.", SweetAlertIcon.Success);
             Navigation.NavigateTo($"records/{record.Id}");
         }
         catch (Exception ex)
         {
             _error = ex.Message;
+            await Swal.FireAsync("Could not create record", ex.Message, SweetAlertIcon.Error);
         }
         finally
         {
