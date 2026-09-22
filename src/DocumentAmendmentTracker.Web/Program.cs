@@ -1,7 +1,8 @@
-using DocumentAmendmentTracker.Web.Components;
+using CurrieTechnologies.Razor.SweetAlert2;
 using DocumentAmendmentTracker.Web.Data;
 using DocumentAmendmentTracker.Web.Options;
 using DocumentAmendmentTracker.Web.Services;
+using Microsoft.AspNetCore.Authentication.Negotiate;
 using Microsoft.AspNetCore.SignalR;
 using Microsoft.EntityFrameworkCore;
 using Radzen;
@@ -9,10 +10,19 @@ using Radzen;
 var builder = WebApplication.CreateBuilder(args);
 
 // Add services to the container.
-builder.Services.AddRazorComponents()
-    .AddInteractiveServerComponents();
+builder.Services.AddRazorPages();
+builder.Services.AddServerSideBlazor();
+
+builder.Services.AddAuthentication(NegotiateDefaults.AuthenticationScheme)
+    .AddNegotiate();
+builder.Services.AddAuthorization(options =>
+{
+    // Every page requires a signed-in Windows/AD user unless explicitly marked [AllowAnonymous].
+    options.FallbackPolicy = options.DefaultPolicy;
+});
 
 builder.Services.AddRadzenComponents();
+builder.Services.AddSweetAlert2();
 
 builder.Services.Configure<FileStorageOptions>(
     builder.Configuration.GetSection(FileStorageOptions.SectionName));
@@ -36,7 +46,7 @@ var app = builder.Build();
 // Configure the HTTP request pipeline.
 if (!app.Environment.IsDevelopment())
 {
-    app.UseExceptionHandler("/Error", createScopeForErrors: true);
+    app.UseExceptionHandler("/Error");
     // The default HSTS value is 30 days. You may want to change this for production scenarios, see https://aka.ms/aspnetcore-hsts.
     app.UseHsts();
 }
@@ -44,9 +54,13 @@ if (!app.Environment.IsDevelopment())
 app.UseHttpsRedirection();
 
 app.UseStaticFiles();
-app.UseAntiforgery();
 
-app.MapRazorComponents<App>()
-    .AddInteractiveServerRenderMode();
+app.UseRouting();
+
+app.UseAuthentication();
+app.UseAuthorization();
+
+app.MapBlazorHub();
+app.MapFallbackToPage("/_Host");
 
 app.Run();

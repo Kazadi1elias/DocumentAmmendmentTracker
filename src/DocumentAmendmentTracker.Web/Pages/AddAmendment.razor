@@ -1,8 +1,9 @@
 @page "/records/{RecordId:int}/amend"
+@attribute [Authorize]
 @inject IRecordService RecordService
 @inject IOptions<FileStorageOptions> FileStorageOptionsAccessor
 @inject NavigationManager Navigation
-@inject NotificationService NotificationService
+@inject SweetAlertService Swal
 @using DocumentAmendmentTracker.Web.Options
 @using Microsoft.Extensions.Options
 
@@ -15,17 +16,13 @@
 else
 {
     <h1>Add Amendment &mdash; @_record.RecordNumber</h1>
-    <p class="timeline-amendment-meta">@_record.Title</p>
+    <p class="timeline-amendment-meta">@_record.Title &middot; Amending as: @_currentUser</p>
 
     <RadzenTemplateForm TItem="object" Data="@(new object())" Submit="@OnSubmitAsync">
         <RadzenFieldset Text="Amendment details">
             <div class="rz-mb-3">
                 <RadzenLabel Text="Description / Change Notes" Component="Description" />
                 <RadzenTextArea @bind-Value="_description" Name="Description" Style="width:100%" Rows="4" />
-            </div>
-            <div class="rz-mb-3">
-                <RadzenLabel Text="Amended By" Component="AmendedBy" />
-                <RadzenTextBox @bind-Value="_amendedBy" Name="AmendedBy" Style="width:100%" />
             </div>
             <div class="rz-mb-3">
                 <RadzenLabel Text="Attachments (optional)" />
@@ -56,16 +53,23 @@ else
 
 @code {
     [Parameter] public int RecordId { get; set; }
+    [CascadingParameter] private Task<Microsoft.AspNetCore.Components.Authorization.AuthenticationState>? AuthStateTask { get; set; }
 
     private Record? _record;
+    private string _currentUser = string.Empty;
     private string _description = string.Empty;
-    private string _amendedBy = string.Empty;
     private string? _error;
     private bool _saving;
     private List<IBrowserFile> _selectedFiles = new();
 
     protected override async Task OnInitializedAsync()
     {
+        if (AuthStateTask is not null)
+        {
+            var authState = await AuthStateTask;
+            _currentUser = authState.User.Identity?.Name ?? "unknown";
+        }
+
         _record = await RecordService.GetRecordWithHistoryAsync(RecordId);
         if (_record is null)
         {
@@ -82,9 +86,9 @@ else
     {
         _error = null;
 
-        if (string.IsNullOrWhiteSpace(_description) || string.IsNullOrWhiteSpace(_amendedBy))
+        if (string.IsNullOrWhiteSpace(_description))
         {
-            _error = "Description and Amended By are required.";
+            _error = "Description is required.";
             return;
         }
 
@@ -95,22 +99,21 @@ else
         {
             foreach (var file in _selectedFiles)
             {
-                uploads.Add(new AttachmentUpload
-                {
-                    FileName = file.Name,
-                    ContentType = string.IsNullOrEmpty(file.ContentType) ? "application/octet-stream" : file.ContentType,
-                    SizeBytes = file.Size,
-                    Content = file.OpenReadStream(maxSize),
-                });
+                uploads.Add(new AttachmentUpload(
+                    file.Name,
+                    string.IsNullOrEmpty(file.ContentType) ? "application/octet-stream" : file.ContentType,
+                    file.Size,
+                    file.OpenReadStream(maxSize)));
             }
 
-            await RecordService.AddAmendmentAsync(RecordId, _description, _amendedBy, uploads);
-            NotificationService.Notify(NotificationSeverity.Success, "Amendment saved");
+            await RecordService.AddAmendmentAsync(RecordId, _description, _currentUser, uploads);
+            await Swal.FireAsync("Amendment saved", "", SweetAlertIcon.Success);
             Navigation.NavigateTo($"records/{RecordId}");
         }
         catch (Exception ex)
         {
             _error = ex.Message;
+            await Swal.FireAsync("Could not save amendment", ex.Message, SweetAlertIcon.Error);
         }
         finally
         {

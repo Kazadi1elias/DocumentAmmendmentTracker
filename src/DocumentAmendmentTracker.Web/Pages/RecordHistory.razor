@@ -1,4 +1,5 @@
 @page "/records/{RecordId:int}"
+@attribute [Authorize]
 @inject IRecordService RecordService
 @inject NavigationManager Navigation
 
@@ -44,7 +45,7 @@ else
                                     <RadzenDataGridColumn TItem="Attachment" Title="Size" Width="100px">
                                         <Template Context="attachment">@FormatSize(attachment.FileSizeBytes)</Template>
                                     </RadzenDataGridColumn>
-                                    <RadzenDataGridColumn TItem="Attachment" Property="UploadedBy" Title="Uploaded By" Width="160px" />
+                                    <RadzenDataGridColumn TItem="Attachment" Property="UploadedBy" Title="Uploaded By" Width="200px" />
                                 </Columns>
                             </RadzenDataGrid>
                         }

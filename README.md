@@ -7,9 +7,14 @@ sequentially, each optionally carrying one or more attachments stored on a netwo
 
 ## Stack
 
-- **Blazor Server** (.NET 8, unified `Blazor Web App` template, Server interactivity)
-- **EF Core 8 + SQL Server**, Code First, migrations in `src/DocumentAmendmentTracker.Web/Data/Migrations`
-- **Radzen.Blazor** for UI components (data grid, timeline, forms, notifications)
+- **Blazor Server** (.NET 6, classic template: `Pages/_Host.cshtml` + `App.razor` router)
+- **EF Core 6 + SQL Server**, Code First, migrations in `src/DocumentAmendmentTracker.Web/Data/Migrations`
+- **Windows/AD authentication** via `Microsoft.AspNetCore.Authentication.Negotiate` — every
+  page requires a signed-in user (`AddAuthorization` fallback policy); `CreatedBy`/`AmendedBy`
+  are taken from the authenticated identity, not typed in
+- **Radzen.Blazor** (4.32.2) for data display: the records grid, the amendment timeline, and form inputs
+- **SweetAlert2** (`CurrieTechnologies.Razor.SweetAlert2`) for success/error popups after
+  creating a record or saving an amendment
 - File uploads use `InputFile.OpenReadStream()` streamed directly to the network share —
   never fully buffered in memory
 
@@ -25,6 +30,12 @@ sequentially, each optionally carrying one or more attachments stored on a netwo
    ```
 4. `dotnet run`
 
+Negotiate (Windows) authentication needs a domain-joined host (IIS or Kestrel on a
+domain-joined Windows server, or Kerberos/keytab-configured Linux) to actually authenticate
+a user — it can't be exercised from an arbitrary dev box. Locally, requests without
+Windows credentials get a `401` + `WWW-Authenticate: Negotiate` challenge, which is the
+expected behavior, not a bug.
+
 ## Key design decisions (spec's open items)
 
 The spec left several decisions for build time. Choices made, and why:
@@ -39,8 +50,9 @@ The spec left several decisions for build time. Choices made, and why:
 3. **Amendments as snapshots vs. additive notes** — additive notes. The `Record`'s own fields
    are not versioned; only the amendment history (description + attachments) accumulates.
 4. **Max attachments per amendment** — multiple attachments are supported per amendment.
-5. **Permissions** — no ownership/role restriction; any user can amend any record. No auth
-   system was in scope, so "who" is just a free-text `AmendedBy`/`CreatedBy` field.
+5. **Permissions** — no ownership/role restriction; any authenticated Windows/AD user can
+   amend any record. `CreatedBy`/`AmendedBy` come from `HttpContext.User.Identity.Name`
+   (Negotiate), not a free-text field.
 6. **Failed file copy** — the whole amendment insert (and any attachments already copied in
    that batch) is rolled back: `RecordService` wraps the amendment + attachment inserts and the
    file copy in one DB transaction, and deletes any partially-copied files if the transaction
@@ -51,5 +63,6 @@ The spec left several decisions for build time. Choices made, and why:
 The service layer (record creation, sequential amendments, attachment placement, and
 transactional rollback on a simulated network share failure) was exercised end-to-end
 against a real relational database with ACID transactions as part of development; all
-checks passed. A live UI walkthrough against a real SQL Server + UNC share is still
-recommended before production use.
+checks passed. The app was also started locally to confirm the Negotiate auth pipeline
+correctly challenges unauthenticated requests. A live UI walkthrough against a real
+SQL Server + UNC share on a domain-joined host is still recommended before production use.

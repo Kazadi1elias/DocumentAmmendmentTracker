@@ -10,7 +10,7 @@ public class FileStorageOptions
     public long MaxFileSizeBytes { get; set; } = 50 * 1024 * 1024;
 
     public string[] AllowedExtensions { get; set; } =
-        [".pdf", ".docx", ".xlsx", ".jpg", ".jpeg", ".png"];
+        new[] { ".pdf", ".docx", ".xlsx", ".jpg", ".jpeg", ".png" };
 
     public int CopyRetryCount { get; set; } = 3;
 
