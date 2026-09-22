@@ -1,0 +1,50 @@
+@page "/"
+@inject IRecordService RecordService
+@inject NavigationManager Navigation
+
+<PageTitle>Records</PageTitle>
+
+<div class="page-header">
+    <h1>Records</h1>
+    <RadzenButton Text="New Record" Icon="add" Click="@(() => Navigation.NavigateTo("records/new"))" />
+</div>
+
+@if (_records is null)
+{
+    <p>Loading&hellip;</p>
+}
+else if (_records.Count == 0)
+{
+    <RadzenCard>
+        <p>No records yet. Create the first one to get started.</p>
+    </RadzenCard>
+}
+else
+{
+    <RadzenDataGrid Data="@_records" TItem="Record" AllowSorting="true" AllowFiltering="true" AllowPaging="true" PageSize="15">
+        <Columns>
+            <RadzenDataGridColumn TItem="Record" Property="RecordNumber" Title="Record #" Width="140px" />
+            <RadzenDataGridColumn TItem="Record" Property="Title" Title="Title" />
+            <RadzenDataGridColumn TItem="Record" Property="Status" Title="Status" Width="120px" />
+            <RadzenDataGridColumn TItem="Record" Property="CreatedBy" Title="Created By" Width="160px" />
+            <RadzenDataGridColumn TItem="Record" Property="CreatedDate" Title="Created" Width="160px">
+                <Template Context="record">@record.CreatedDate.ToLocalTime().ToString("g")</Template>
+            </RadzenDataGridColumn>
+            <RadzenDataGridColumn TItem="Record" Title="" Width="120px" Sortable="false" Filterable="false">
+                <Template Context="record">
+                    <RadzenButton Text="View" ButtonStyle="ButtonStyle.Light" Size="ButtonSize.Small"
+                                  Click="@(() => Navigation.NavigateTo($"records/{record.Id}"))" />
+                </Template>
+            </RadzenDataGridColumn>
+        </Columns>
+    </RadzenDataGrid>
+}
+
+@code {
+    private List<Record>? _records;
+
+    protected override async Task OnInitializedAsync()
+    {
+        _records = await RecordService.GetRecordsAsync();
+    }
+}

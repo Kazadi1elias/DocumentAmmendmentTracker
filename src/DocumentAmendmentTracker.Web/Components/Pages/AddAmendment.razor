@@ -1,0 +1,128 @@
+@page "/records/{RecordId:int}/amend"
+@inject IRecordService RecordService
+@inject IOptions<FileStorageOptions> FileStorageOptionsAccessor
+@inject NavigationManager Navigation
+@inject NotificationService NotificationService
+@using DocumentAmendmentTracker.Web.Options
+@using Microsoft.Extensions.Options
+
+<PageTitle>Add Amendment</PageTitle>
+
+@if (_record is null)
+{
+    <p>Loading&hellip;</p>
+}
+else
+{
+    <h1>Add Amendment &mdash; @_record.RecordNumber</h1>
+    <p class="timeline-amendment-meta">@_record.Title</p>
+
+    <RadzenTemplateForm TItem="object" Data="@(new object())" Submit="@OnSubmitAsync">
+        <RadzenFieldset Text="Amendment details">
+            <div class="rz-mb-3">
+                <RadzenLabel Text="Description / Change Notes" Component="Description" />
+                <RadzenTextArea @bind-Value="_description" Name="Description" Style="width:100%" Rows="4" />
+            </div>
+            <div class="rz-mb-3">
+                <RadzenLabel Text="Amended By" Component="AmendedBy" />
+                <RadzenTextBox @bind-Value="_amendedBy" Name="AmendedBy" Style="width:100%" />
+            </div>
+            <div class="rz-mb-3">
+                <RadzenLabel Text="Attachments (optional)" />
+                <InputFile OnChange="OnFilesSelected" multiple />
+                @if (_selectedFiles.Count > 0)
+                {
+                    <ul class="upload-list">
+                        @foreach (var file in _selectedFiles)
+                        {
+                            <li>@file.Name (@FormatSize(file.Size))</li>
+                        }
+                    </ul>
+                }
+            </div>
+
+            @if (!string.IsNullOrEmpty(_error))
+            {
+                <RadzenAlert AlertStyle="AlertStyle.Danger" Variant="Variant.Flat">@_error</RadzenAlert>
+            }
+
+            <RadzenStack Orientation="Orientation.Horizontal" Gap="0.5rem">
+                <RadzenButton ButtonType="ButtonType.Submit" Text="Save Amendment" Disabled="@_saving" />
+                <RadzenButton Text="Cancel" ButtonStyle="ButtonStyle.Light" Click="@(() => Navigation.NavigateTo($"records/{RecordId}"))" />
+            </RadzenStack>
+        </RadzenFieldset>
+    </RadzenTemplateForm>
+}
+
+@code {
+    [Parameter] public int RecordId { get; set; }
+
+    private Record? _record;
+    private string _description = string.Empty;
+    private string _amendedBy = string.Empty;
+    private string? _error;
+    private bool _saving;
+    private List<IBrowserFile> _selectedFiles = new();
+
+    protected override async Task OnInitializedAsync()
+    {
+        _record = await RecordService.GetRecordWithHistoryAsync(RecordId);
+        if (_record is null)
+        {
+            Navigation.NavigateTo("");
+        }
+    }
+
+    private void OnFilesSelected(InputFileChangeEventArgs e)
+    {
+        _selectedFiles = e.GetMultipleFiles(10).ToList();
+    }
+
+    private async Task OnSubmitAsync()
+    {
+        _error = null;
+
+        if (string.IsNullOrWhiteSpace(_description) || string.IsNullOrWhiteSpace(_amendedBy))
+        {
+            _error = "Description and Amended By are required.";
+            return;
+        }
+
+        _saving = true;
+        var maxSize = FileStorageOptionsAccessor.Value.MaxFileSizeBytes;
+        var uploads = new List<AttachmentUpload>();
+        try
+        {
+            foreach (var file in _selectedFiles)
+            {
+                uploads.Add(new AttachmentUpload
+                {
+                    FileName = file.Name,
+                    ContentType = string.IsNullOrEmpty(file.ContentType) ? "application/octet-stream" : file.ContentType,
+                    SizeBytes = file.Size,
+                    Content = file.OpenReadStream(maxSize),
+                });
+            }
+
+            await RecordService.AddAmendmentAsync(RecordId, _description, _amendedBy, uploads);
+            NotificationService.Notify(NotificationSeverity.Success, "Amendment saved");
+            Navigation.NavigateTo($"records/{RecordId}");
+        }
+        catch (Exception ex)
+        {
+            _error = ex.Message;
+        }
+        finally
+        {
+            foreach (var upload in uploads)
+            {
+                upload.Dispose();
+            }
+            _saving = false;
+        }
+    }
+
+    private static string FormatSize(long bytes) => bytes < 1024 * 1024
+        ? $"{bytes / 1024.0:0.#} KB"
+        : $"{bytes / (1024.0 * 1024.0):0.#} MB";
+}

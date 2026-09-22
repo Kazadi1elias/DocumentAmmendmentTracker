@@ -1,0 +1,75 @@
+@page "/records/{RecordId:int}"
+@inject IRecordService RecordService
+@inject NavigationManager Navigation
+
+<PageTitle>Record History</PageTitle>
+
+@if (_record is null)
+{
+    <p>Loading&hellip;</p>
+}
+else
+{
+    <div class="page-header">
+        <div>
+            <h1>@_record.RecordNumber &mdash; @_record.Title</h1>
+            <p class="timeline-amendment-meta">
+                Status: @_record.Status &middot; Created by @_record.CreatedBy on @_record.CreatedDate.ToLocalTime().ToString("g")
+            </p>
+        </div>
+        <RadzenButton Text="Add Amendment" Icon="add" Click="@(() => Navigation.NavigateTo($"records/{RecordId}/amend"))" />
+    </div>
+
+    <RadzenTimeline>
+        @foreach (var amendment in _record.Amendments.OrderByDescending(a => a.SequenceNumber))
+        {
+            <RadzenTimelineItem>
+                <ChildContent>
+                    <RadzenCard class="rz-mb-3">
+                        <div class="timeline-amendment-header">
+                            <h3 style="margin:0">
+                                @(amendment.SequenceNumber == 0 ? "Amendment 0 — Initial creation" : $"Amendment {amendment.SequenceNumber}")
+                            </h3>
+                            <span class="timeline-amendment-meta">
+                                @amendment.AmendedBy &middot; @amendment.AmendedDate.ToLocalTime().ToString("g")
+                            </span>
+                        </div>
+                        <p>@amendment.Description</p>
+
+                        @if (amendment.Attachments.Count > 0)
+                        {
+                            <RadzenDataGrid Data="@amendment.Attachments" TItem="Attachment" AllowPaging="false" Density="Density.Compact">
+                                <Columns>
+                                    <RadzenDataGridColumn TItem="Attachment" Property="FileName" Title="File" />
+                                    <RadzenDataGridColumn TItem="Attachment" Title="Size" Width="100px">
+                                        <Template Context="attachment">@FormatSize(attachment.FileSizeBytes)</Template>
+                                    </RadzenDataGridColumn>
+                                    <RadzenDataGridColumn TItem="Attachment" Property="UploadedBy" Title="Uploaded By" Width="160px" />
+                                </Columns>
+                            </RadzenDataGrid>
+                        }
+                        else
+                        {
+                            <p class="timeline-amendment-meta">No attachments.</p>
+                        }
+                    </RadzenCard>
+                </ChildContent>
+            </RadzenTimelineItem>
+        }
+    </RadzenTimeline>
+}
+
+@code {
+    [Parameter] public int RecordId { get; set; }
+
+    private Record? _record;
+
+    protected override async Task OnInitializedAsync()
+    {
+        _record = await RecordService.GetRecordWithHistoryAsync(RecordId);
+    }
+
+    private static string FormatSize(long bytes) => bytes < 1024 * 1024
+        ? $"{bytes / 1024.0:0.#} KB"
+        : $"{bytes / (1024.0 * 1024.0):0.#} MB";
+}
