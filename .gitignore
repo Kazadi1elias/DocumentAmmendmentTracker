@@ -1,0 +1,20 @@
+## .NET
+bin/
+obj/
+*.user
+*.suo
+
+## VS / Rider / VS Code
+.vs/
+.idea/
+*.swp
+
+## Build results
+[Dd]ebug/
+[Rr]elease/
+
+## Local secrets / environment
+appsettings.*.local.json
+*.db
+*.db-shm
+*.db-wal

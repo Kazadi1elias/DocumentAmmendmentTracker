@@ -1,0 +1,118 @@
+@page "/records/new"
+@inject IRecordService RecordService
+@inject IOptions<FileStorageOptions> FileStorageOptionsAccessor
+@inject NavigationManager Navigation
+@inject NotificationService NotificationService
+@using DocumentAmendmentTracker.Web.Options
+@using Microsoft.Extensions.Options
+
+<PageTitle>New Record</PageTitle>
+
+<h1>Create Record</h1>
+
+<RadzenTemplateForm TItem="object" Data="@(new object())" Submit="@OnSubmitAsync">
+    <RadzenFieldset Text="Record details">
+        <div class="rz-mb-3">
+            <RadzenLabel Text="Record Number" Component="RecordNumber" />
+            <RadzenTextBox @bind-Value="_recordNumber" Name="RecordNumber" Style="width:100%" />
+        </div>
+        <div class="rz-mb-3">
+            <RadzenLabel Text="Title" Component="Title" />
+            <RadzenTextBox @bind-Value="_title" Name="Title" Style="width:100%" />
+        </div>
+        <div class="rz-mb-3">
+            <RadzenLabel Text="Created By" Component="CreatedBy" />
+            <RadzenTextBox @bind-Value="_createdBy" Name="CreatedBy" Style="width:100%" />
+        </div>
+        <div class="rz-mb-3">
+            <RadzenLabel Text="Initial notes (optional)" Component="Notes" />
+            <RadzenTextArea @bind-Value="_notes" Name="Notes" Style="width:100%" Rows="3" />
+        </div>
+        <div class="rz-mb-3">
+            <RadzenLabel Text="Initial attachments (optional)" />
+            <InputFile OnChange="OnFilesSelected" multiple />
+            @if (_selectedFiles.Count > 0)
+            {
+                <ul class="upload-list">
+                    @foreach (var file in _selectedFiles)
+                    {
+                        <li>@file.Name (@FormatSize(file.Size))</li>
+                    }
+                </ul>
+            }
+        </div>
+
+        @if (!string.IsNullOrEmpty(_error))
+        {
+            <RadzenAlert AlertStyle="AlertStyle.Danger" Variant="Variant.Flat">@_error</RadzenAlert>
+        }
+
+        <RadzenStack Orientation="Orientation.Horizontal" Gap="0.5rem">
+            <RadzenButton ButtonType="ButtonType.Submit" Text="Create Record" Disabled="@_saving" />
+            <RadzenButton Text="Cancel" ButtonStyle="ButtonStyle.Light" Click="@(() => Navigation.NavigateTo(""))" />
+        </RadzenStack>
+    </RadzenFieldset>
+</RadzenTemplateForm>
+
+@code {
+    private string _recordNumber = string.Empty;
+    private string _title = string.Empty;
+    private string _createdBy = string.Empty;
+    private string _notes = string.Empty;
+    private string? _error;
+    private bool _saving;
+    private List<IBrowserFile> _selectedFiles = new();
+
+    private void OnFilesSelected(InputFileChangeEventArgs e)
+    {
+        _selectedFiles = e.GetMultipleFiles(10).ToList();
+    }
+
+    private async Task OnSubmitAsync()
+    {
+        _error = null;
+
+        if (string.IsNullOrWhiteSpace(_recordNumber) || string.IsNullOrWhiteSpace(_title) || string.IsNullOrWhiteSpace(_createdBy))
+        {
+            _error = "Record Number, Title and Created By are required.";
+            return;
+        }
+
+        _saving = true;
+        var maxSize = FileStorageOptionsAccessor.Value.MaxFileSizeBytes;
+        var uploads = new List<AttachmentUpload>();
+        try
+        {
+            foreach (var file in _selectedFiles)
+            {
+                uploads.Add(new AttachmentUpload
+                {
+                    FileName = file.Name,
+                    ContentType = string.IsNullOrEmpty(file.ContentType) ? "application/octet-stream" : file.ContentType,
+                    SizeBytes = file.Size,
+                    Content = file.OpenReadStream(maxSize),
+                });
+            }
+
+            var record = await RecordService.CreateRecordAsync(_recordNumber, _title, _createdBy, _notes, uploads);
+            NotificationService.Notify(NotificationSeverity.Success, "Record created", $"Record {record.RecordNumber} was created.");
+            Navigation.NavigateTo($"records/{record.Id}");
+        }
+        catch (Exception ex)
+        {
+            _error = ex.Message;
+        }
+        finally
+        {
+            foreach (var upload in uploads)
+            {
+                upload.Dispose();
+            }
+            _saving = false;
+        }
+    }
+
+    private static string FormatSize(long bytes) => bytes < 1024 * 1024
+        ? $"{bytes / 1024.0:0.#} KB"
+        : $"{bytes / (1024.0 * 1024.0):0.#} MB";
+}
