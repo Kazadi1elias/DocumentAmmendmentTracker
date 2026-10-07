@@ -14,6 +14,10 @@ public class AppDbContext : DbContext
     public DbSet<Attachment> Attachments => Set<Attachment>();
     public DbSet<Matter> Matters => Set<Matter>();
     public DbSet<Party> Parties => Set<Party>();
+    public DbSet<Document> Documents => Set<Document>();
+    public DbSet<DiaryEvent> DiaryEvents => Set<DiaryEvent>();
+    public DbSet<FeeNote> FeeNotes => Set<FeeNote>();
+    public DbSet<Lesson> Lessons => Set<Lesson>();
 
     protected override void OnModelCreating(ModelBuilder modelBuilder)
     {
@@ -75,6 +79,63 @@ public class AppDbContext : DbContext
             entity.HasIndex(p => p.PartyNo).IsUnique();
             entity.Property(p => p.IndividualSumClaimed).HasPrecision(18, 2);
             entity.Ignore(p => p.Designation);
+        });
+
+        // Document/DiaryEvent/FeeNote/Lesson: schema only, same stored-procedure-only pattern.
+        modelBuilder.Entity<Document>(entity =>
+        {
+            entity.HasIndex(d => d.DocNo).IsUnique();
+            entity.Ignore(d => d.DaysToDeadline);
+            entity.Ignore(d => d.DeadlineFlag);
+
+            entity.HasOne<Matter>()
+                .WithMany()
+                .HasForeignKey(d => d.MatterId)
+                .OnDelete(DeleteBehavior.Cascade);
+        });
+
+        modelBuilder.Entity<DiaryEvent>(entity =>
+        {
+            entity.HasIndex(e => e.EventNo).IsUnique();
+            entity.Ignore(e => e.DaysToEvent);
+            entity.Ignore(e => e.Alert);
+
+            entity.HasOne<Matter>()
+                .WithMany()
+                .HasForeignKey(e => e.MatterId)
+                .OnDelete(DeleteBehavior.Cascade);
+        });
+
+        modelBuilder.Entity<FeeNote>(entity =>
+        {
+            entity.HasIndex(f => f.RefNo).IsUnique();
+
+            entity.Property(f => f.ProfessionalFees).HasPrecision(18, 2);
+            entity.Property(f => f.Disbursements).HasPrecision(18, 2);
+            entity.Property(f => f.Vat).HasPrecision(18, 2);
+            entity.Property(f => f.WithholdingTax).HasPrecision(18, 2);
+            entity.Property(f => f.ApprovedBudgetForStage).HasPrecision(18, 2);
+
+            entity.Ignore(f => f.GrossInvoiceValue);
+            entity.Ignore(f => f.NetPayableToFirm);
+            entity.Ignore(f => f.VarianceToBudget);
+
+            entity.HasOne<Matter>()
+                .WithMany()
+                .HasForeignKey(f => f.MatterId)
+                .OnDelete(DeleteBehavior.Cascade);
+        });
+
+        modelBuilder.Entity<Lesson>(entity =>
+        {
+            entity.HasIndex(l => l.LessonNo).IsUnique();
+            entity.Property(l => l.CostAttributable).HasPrecision(18, 2);
+            entity.Ignore(l => l.DaysOverdue);
+
+            entity.HasOne<Matter>()
+                .WithMany()
+                .HasForeignKey(l => l.MatterId)
+                .OnDelete(DeleteBehavior.Cascade);
         });
     }
 }
