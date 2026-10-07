@@ -1,0 +1,203 @@
+@page "/matters/{Id:int}"
+@attribute [Authorize]
+@inject IMatterService MatterService
+@inject NavigationManager Navigation
+@inject SweetAlertService Swal
+@using DocumentAmendmentTracker.Web.Models
+
+<PageTitle>Matter Detail</PageTitle>
+
+@if (_matter is null)
+{
+    <p>Loading&hellip;</p>
+}
+else
+{
+    <div class="page-header">
+        <div>
+            <h1>@_matter.MatterId &mdash; @_matter.CauseTitle</h1>
+            <p class="timeline-amendment-meta">
+                @_matter.StatusOfMatter &middot; Risk: @_matter.RiskRating &middot; @_matter.CourtTribunal
+            </p>
+        </div>
+        <RadzenButton Text="Edit Matter" Icon="edit" Click="@(() => Navigation.NavigateTo($"matters/{Id}/edit"))" />
+    </div>
+
+    <RadzenCard class="rz-mb-3">
+        <h3>Case Details</h3>
+        <div class="detail-grid">
+            <div><strong>Entity / Employer</strong><div>@_matter.EntityEmployer</div></div>
+            <div><strong>Forum Type</strong><div>@_matter.ForumType</div></div>
+            <div><strong>Cause No.</strong><div>@_matter.CauseNo</div></div>
+            <div><strong>Our Role</strong><div>@_matter.OurRole</div></div>
+            <div><strong>Nature of Matter</strong><div>@_matter.NatureOfMatter</div></div>
+            <div><strong>Date of Commencement</strong><div>@_matter.DateOfCommencement.ToString("yyyy-MM-dd")</div></div>
+            <div><strong>Estimated Completion</strong><div>@(_matter.EstimatedDateOfCompletion?.ToString("yyyy-MM-dd") ?? "-")</div></div>
+            <div><strong>Law Firm with Conduct</strong><div>@_matter.LawFirmWithConduct</div></div>
+            <div><strong>Internal Lawyer Responsible</strong><div>@_matter.InternalLawyerResponsible</div></div>
+            <div><strong>Judge</strong><div>@_matter.Judge</div></div>
+            <div><strong>Arbitrator/Mediator/Conciliator</strong><div>@_matter.ArbitratorMediatorConciliator</div></div>
+        </div>
+        <div class="rz-mt-3"><strong>Brief Outline</strong><p>@_matter.BriefOutline</p></div>
+    </RadzenCard>
+
+    <RadzenCard class="rz-mb-3">
+        <h3>Financials &amp; Progress</h3>
+        <div class="detail-grid">
+            <div><strong>Sum Claimed</strong><div>@_matter.Currency @_matter.SumClaimed.ToString("N2")</div></div>
+            <div><strong>Likelihood of Adverse Outcome</strong><div>@_matter.LikelihoodOfAdverseOutcome</div></div>
+            <div><strong>Provision Recommended</strong><div>@_matter.Currency @_matter.ProvisionRecommended.ToString("N2")</div></div>
+            <div><strong>Legal Fees Incurred to Date</strong><div>@_matter.Currency @_matter.LegalFeesIncurredToDate.ToString("N2")</div></div>
+            <div><strong>Estimated Legal Fees to Finalisation</strong><div>@_matter.Currency @_matter.EstimatedLegalFeesToFinalisation.ToString("N2")</div></div>
+            <div><strong>Next Date</strong><div>@(_matter.NextDate?.ToString("yyyy-MM-dd") ?? "-")</div></div>
+            <div><strong>Next Step / Action</strong><div>@_matter.NextStepAction</div></div>
+            <div><strong>Last Activity Date</strong><div>@_matter.LastActivityDate.ToString("yyyy-MM-dd")</div></div>
+        </div>
+    </RadzenCard>
+
+    <RadzenCard class="rz-mb-3">
+        <h3>Derived (computed from Parties Register)</h3>
+        <div class="detail-grid">
+            <div><strong>Cause Title</strong><div>@_matter.CauseTitle</div></div>
+            <div><strong>Party Structure</strong><div>@_matter.PartyStructure</div></div>
+            <div><strong>No. of Claimants</strong><div>@_matter.NoOfClaimants</div></div>
+            <div><strong>No. of Respondents</strong><div>@_matter.NoOfRespondents</div></div>
+            <div><strong>Lead Claimant</strong><div>@_matter.LeadClaimant</div></div>
+            <div><strong>Lead Respondent</strong><div>@_matter.LeadRespondent</div></div>
+            <div><strong>Sum Claimed per Parties Register</strong><div>@_matter.Currency @_matter.SumClaimedPerPartiesRegister.ToString("N2")</div></div>
+            <div><strong>Claims Reconciliation</strong><div>@_matter.ClaimsReconciliation</div></div>
+            <div><strong>Total Estimated Legal Cost</strong><div>@_matter.Currency @_matter.TotalEstimatedLegalCost.ToString("N2")</div></div>
+            <div><strong>Total Financial Exposure</strong><div>@_matter.Currency @_matter.TotalFinancialExposure.ToString("N2")</div></div>
+            <div><strong>Days Open</strong><div>@_matter.DaysOpen</div></div>
+            <div><strong>Days to Next Date</strong><div>@(_matter.DaysToNextDate?.ToString() ?? "-")</div></div>
+            <div><strong>Days Since Last Activity</strong><div>@_matter.DaysSinceLastActivity</div></div>
+            <div><strong>Parties on Record</strong><div>@_matter.PartiesOnRecord</div></div>
+        </div>
+    </RadzenCard>
+
+    <RadzenCard class="rz-mb-3">
+        <div class="page-header">
+            <h3 style="margin:0">Parties</h3>
+            <RadzenButton Text="@(_showAddParty ? "Cancel" : "Add Party")" Icon="@(_showAddParty ? "close" : "add")"
+                          ButtonStyle="@(_showAddParty ? ButtonStyle.Light : ButtonStyle.Primary)"
+                          Click="@(() => _showAddParty = !_showAddParty)" />
+        </div>
+
+        @if (_showAddParty)
+        {
+            <RadzenTemplateForm TItem="object" Data="@(new object())" Submit="@OnAddPartySubmitAsync">
+                <div class="detail-grid">
+                    <div>
+                        <RadzenLabel Text="Side" Component="Side" />
+                        <RadzenDropDown @bind-Value="_newParty.Side" Data="@MatterLists.Sides" Name="Side" Style="width:100%" />
+                    </div>
+                    <div>
+                        <RadzenLabel Text="Party Role / Title" Component="PartyRoleTitle" />
+                        <RadzenDropDown @bind-Value="_newParty.PartyRoleTitle" Data="@MatterLists.PartyRoles" Name="PartyRoleTitle" Style="width:100%" />
+                    </div>
+                    <div>
+                        <RadzenLabel Text="Party Name" Component="PartyName" />
+                        <RadzenTextBox @bind-Value="_newParty.PartyName" Name="PartyName" Style="width:100%" />
+                    </div>
+                    <div>
+                        <RadzenLabel Text="Party Type" Component="PartyType" />
+                        <RadzenDropDown @bind-Value="_newParty.PartyType" Data="@MatterLists.PartyTypes" Name="PartyType" Style="width:100%" />
+                    </div>
+                    <div>
+                        <RadzenLabel Text="Individual Sum Claimed" Component="IndividualSumClaimed" />
+                        <RadzenNumeric @bind-Value="_newParty.IndividualSumClaimed" Name="IndividualSumClaimed" Style="width:100%" />
+                    </div>
+                    <div>
+                        <RadzenLabel Text="Date Joined" Component="DateJoined" />
+                        <RadzenDatePicker @bind-Value="_newParty.DateJoined" Name="DateJoined" Style="width:100%" />
+                    </div>
+                    <div>
+                        <RadzenLabel Text="Party Status" Component="PartyStatus" />
+                        <RadzenDropDown @bind-Value="_newParty.PartyStatus" Data="@MatterLists.PartyStatuses" Name="PartyStatus" Style="width:100%" />
+                    </div>
+                    <div>
+                        <RadzenLabel Text="Represented By" Component="RepresentedBy" />
+                        <RadzenTextBox @bind-Value="_newParty.RepresentedBy" Name="RepresentedBy" Style="width:100%" />
+                    </div>
+                </div>
+
+                @if (!string.IsNullOrEmpty(_partyError))
+                {
+                    <RadzenAlert AlertStyle="AlertStyle.Danger" Variant="Variant.Flat">@_partyError</RadzenAlert>
+                }
+
+                <RadzenButton ButtonType="ButtonType.Submit" Text="Save Party" class="rz-mt-2" />
+            </RadzenTemplateForm>
+        }
+
+        @if (_matter.Parties.Count == 0)
+        {
+            <p class="timeline-amendment-meta">No parties on record yet.</p>
+        }
+        else
+        {
+            <RadzenDataGrid Data="@_matter.Parties" TItem="Party" AllowPaging="false" Density="Density.Compact" class="rz-mt-3">
+                <Columns>
+                    <RadzenDataGridColumn TItem="Party" Property="PartyNo" Title="Party No." Width="100px" />
+                    <RadzenDataGridColumn TItem="Party" Property="Side" Title="Side" Width="160px" />
+                    <RadzenDataGridColumn TItem="Party" Property="Designation" Title="Designation" Width="160px" />
+                    <RadzenDataGridColumn TItem="Party" Property="PartyName" Title="Name" />
+                    <RadzenDataGridColumn TItem="Party" Property="PartyType" Title="Type" Width="140px" />
+                    <RadzenDataGridColumn TItem="Party" Property="IndividualSumClaimed" Title="Sum Claimed" Width="140px">
+                        <Template Context="party">@party.IndividualSumClaimed.ToString("N2")</Template>
+                    </RadzenDataGridColumn>
+                    <RadzenDataGridColumn TItem="Party" Property="PartyStatus" Title="Status" Width="140px" />
+                </Columns>
+            </RadzenDataGrid>
+        }
+    </RadzenCard>
+}
+
+@code {
+    [Parameter] public int Id { get; set; }
+    [CascadingParameter] private Task<Microsoft.AspNetCore.Components.Authorization.AuthenticationState>? AuthStateTask { get; set; }
+
+    private Matter? _matter;
+    private bool _showAddParty;
+    private string? _partyError;
+    private Party _newParty = NewParty();
+
+    protected override async Task OnInitializedAsync()
+    {
+        _matter = await MatterService.GetMatterByIdAsync(Id);
+    }
+
+    private async Task OnAddPartySubmitAsync()
+    {
+        _partyError = null;
+
+        if (string.IsNullOrWhiteSpace(_newParty.PartyName))
+        {
+            _partyError = "Party Name is required.";
+            return;
+        }
+
+        try
+        {
+            await MatterService.AddPartyAsync(Id, _newParty);
+            await Swal.FireAsync("Party added", $"{_newParty.PartyName} was added to the matter.", SweetAlertIcon.Success);
+            _matter = await MatterService.GetMatterByIdAsync(Id);
+            _newParty = NewParty();
+            _showAddParty = false;
+        }
+        catch (Exception ex)
+        {
+            _partyError = ex.Message;
+            await Swal.FireAsync("Could not add party", ex.Message, SweetAlertIcon.Error);
+        }
+    }
+
+    private static Party NewParty() => new()
+    {
+        Side = MatterLists.Sides[0],
+        PartyRoleTitle = MatterLists.PartyRoles[0],
+        PartyType = MatterLists.PartyTypes[0],
+        PartyStatus = MatterLists.PartyStatuses[0],
+        DateJoined = DateTime.UtcNow.Date,
+    };
+}

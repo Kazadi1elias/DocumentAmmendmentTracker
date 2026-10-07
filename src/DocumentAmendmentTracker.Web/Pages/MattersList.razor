@@ -1,0 +1,58 @@
+@page "/matters"
+@attribute [Authorize]
+@inject IMatterService MatterService
+@inject NavigationManager Navigation
+@using DocumentAmendmentTracker.Web.Models
+
+<PageTitle>Matters</PageTitle>
+
+<div class="page-header">
+    <h1>Matter Register</h1>
+    <RadzenButton Text="New Matter" Icon="add" Click="@(() => Navigation.NavigateTo("matters/new"))" />
+</div>
+
+@if (_matters is null)
+{
+    <p>Loading&hellip;</p>
+}
+else if (_matters.Count == 0)
+{
+    <RadzenCard>
+        <p>No matters yet. Create the first one to get started.</p>
+    </RadzenCard>
+}
+else
+{
+    <RadzenDataGrid Data="@_matters" TItem="Matter" AllowSorting="true" AllowFiltering="true" AllowPaging="true" PageSize="15">
+        <Columns>
+            <RadzenDataGridColumn TItem="Matter" Property="MatterId" Title="Matter ID" Width="140px" />
+            <RadzenDataGridColumn TItem="Matter" Property="EntityEmployer" Title="Entity" Width="160px" />
+            <RadzenDataGridColumn TItem="Matter" Property="ForumType" Title="Forum" Width="120px" />
+            <RadzenDataGridColumn TItem="Matter" Property="CauseNo" Title="Cause No" Width="140px" />
+            <RadzenDataGridColumn TItem="Matter" Property="CauseTitle" Title="Cause Title" />
+            <RadzenDataGridColumn TItem="Matter" Property="StatusOfMatter" Title="Status" Width="160px" />
+            <RadzenDataGridColumn TItem="Matter" Property="NextDate" Title="Next Date" Width="130px">
+                <Template Context="matter">@(matter.NextDate?.ToString("yyyy-MM-dd") ?? "-")</Template>
+            </RadzenDataGridColumn>
+            <RadzenDataGridColumn TItem="Matter" Property="RiskRating" Title="Risk" Width="100px" />
+            <RadzenDataGridColumn TItem="Matter" Property="TotalFinancialExposure" Title="Exposure" Width="150px">
+                <Template Context="matter">@matter.Currency&nbsp;@matter.TotalFinancialExposure.ToString("N2")</Template>
+            </RadzenDataGridColumn>
+            <RadzenDataGridColumn TItem="Matter" Title="" Width="100px" Sortable="false" Filterable="false">
+                <Template Context="matter">
+                    <RadzenButton Text="View" ButtonStyle="ButtonStyle.Light" Size="ButtonSize.Small"
+                                  Click="@(() => Navigation.NavigateTo($"matters/{matter.Id}"))" />
+                </Template>
+            </RadzenDataGridColumn>
+        </Columns>
+    </RadzenDataGrid>
+}
+
+@code {
+    private List<Matter>? _matters;
+
+    protected override async Task OnInitializedAsync()
+    {
+        _matters = await MatterService.GetMattersAsync();
+    }
+}

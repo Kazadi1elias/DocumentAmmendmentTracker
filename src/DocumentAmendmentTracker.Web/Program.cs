@@ -32,6 +32,7 @@ builder.Services.AddDbContextFactory<AppDbContext>(options =>
 
 builder.Services.AddScoped<IFileStorageService, FileStorageService>();
 builder.Services.AddScoped<IRecordService, RecordService>();
+builder.Services.AddScoped<IMatterService, MatterService>();
 
 // Raise the SignalR message size limit so attachment uploads up to FileStorage:MaxFileSizeBytes
 // can stream over the Blazor Server circuit (default is 32KB).

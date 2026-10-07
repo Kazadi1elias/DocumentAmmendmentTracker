@@ -1,0 +1,154 @@
+@page "/matters/new"
+@attribute [Authorize]
+@inject IMatterService MatterService
+@inject NavigationManager Navigation
+@inject SweetAlertService Swal
+@using DocumentAmendmentTracker.Web.Models
+
+<PageTitle>New Matter</PageTitle>
+
+<h1>Create Matter</h1>
+<p class="timeline-amendment-meta">Creating as: @_currentUser</p>
+
+<RadzenTemplateForm TItem="object" Data="@(new object())" Submit="@OnSubmitAsync">
+    <RadzenFieldset Text="Matter details">
+        <div class="rz-mb-3">
+            <RadzenLabel Text="Entity / Employer" Component="EntityEmployer" />
+            <RadzenTextBox @bind-Value="_matter.EntityEmployer" Name="EntityEmployer" Style="width:100%" />
+        </div>
+        <div class="rz-mb-3">
+            <RadzenLabel Text="Forum Type" Component="ForumType" />
+            <RadzenDropDown @bind-Value="_matter.ForumType" Data="@MatterLists.ForumTypes" Name="ForumType" Style="width:100%" />
+        </div>
+        <div class="rz-mb-3">
+            <RadzenLabel Text="Court / Tribunal" Component="CourtTribunal" />
+            <RadzenTextBox @bind-Value="_matter.CourtTribunal" Name="CourtTribunal" Style="width:100%" />
+        </div>
+        <div class="rz-mb-3">
+            <RadzenLabel Text="Cause No." Component="CauseNo" />
+            <RadzenTextBox @bind-Value="_matter.CauseNo" Name="CauseNo" Style="width:100%" />
+        </div>
+        <div class="rz-mb-3">
+            <RadzenLabel Text="Names of Parties (free text)" Component="NamesOfParties" />
+            <RadzenTextArea @bind-Value="_matter.NamesOfParties" Name="NamesOfParties" Style="width:100%" Rows="2" />
+        </div>
+        <div class="rz-mb-3">
+            <RadzenLabel Text="Our Role" Component="OurRole" />
+            <RadzenDropDown @bind-Value="_matter.OurRole" Data="@MatterLists.Roles" Name="OurRole" Style="width:100%" />
+        </div>
+        <div class="rz-mb-3">
+            <RadzenLabel Text="Nature of Matter" Component="NatureOfMatter" />
+            <RadzenDropDown @bind-Value="_matter.NatureOfMatter" Data="@MatterLists.Natures" Name="NatureOfMatter" Style="width:100%" />
+        </div>
+        <div class="rz-mb-3">
+            <RadzenLabel Text="Date of Commencement" Component="DateOfCommencement" />
+            <RadzenDatePicker @bind-Value="_matter.DateOfCommencement" Name="DateOfCommencement" Style="width:100%" />
+        </div>
+        <div class="rz-mb-3">
+            <RadzenLabel Text="Estimated Date of Completion" Component="EstimatedDateOfCompletion" />
+            <RadzenDatePicker @bind-Value="_matter.EstimatedDateOfCompletion" Name="EstimatedDateOfCompletion" Style="width:100%" />
+        </div>
+        <div class="rz-mb-3">
+            <RadzenLabel Text="Law Firm with Conduct" Component="LawFirmWithConduct" />
+            <RadzenTextBox @bind-Value="_matter.LawFirmWithConduct" Name="LawFirmWithConduct" Style="width:100%" />
+        </div>
+        <div class="rz-mb-3">
+            <RadzenLabel Text="Internal Lawyer Responsible" Component="InternalLawyerResponsible" />
+            <RadzenTextBox @bind-Value="_matter.InternalLawyerResponsible" Name="InternalLawyerResponsible" Style="width:100%" />
+        </div>
+        <div class="rz-mb-3">
+            <RadzenLabel Text="Brief Outline" Component="BriefOutline" />
+            <RadzenTextArea @bind-Value="_matter.BriefOutline" Name="BriefOutline" Style="width:100%" Rows="4" />
+        </div>
+        <div class="rz-mb-3">
+            <RadzenLabel Text="Currency" Component="Currency" />
+            <RadzenDropDown @bind-Value="_matter.Currency" Data="@MatterLists.Currencies" Name="Currency" Style="width:100%" />
+        </div>
+        <div class="rz-mb-3">
+            <RadzenLabel Text="Sum Claimed" Component="SumClaimed" />
+            <RadzenNumeric @bind-Value="_matter.SumClaimed" Name="SumClaimed" Style="width:100%" />
+        </div>
+        <div class="rz-mb-3">
+            <RadzenLabel Text="Likelihood of Adverse Outcome" Component="LikelihoodOfAdverseOutcome" />
+            <RadzenDropDown @bind-Value="_matter.LikelihoodOfAdverseOutcome" Data="@MatterLists.Likelihoods" Name="LikelihoodOfAdverseOutcome" Style="width:100%" />
+        </div>
+        <div class="rz-mb-3">
+            <RadzenLabel Text="Provision Recommended" Component="ProvisionRecommended" />
+            <RadzenNumeric @bind-Value="_matter.ProvisionRecommended" Name="ProvisionRecommended" Style="width:100%" />
+        </div>
+        <div class="rz-mb-3">
+            <RadzenLabel Text="Status of Matter" Component="StatusOfMatter" />
+            <RadzenDropDown @bind-Value="_matter.StatusOfMatter" Data="@MatterLists.Statuses" Name="StatusOfMatter" Style="width:100%" />
+        </div>
+        <div class="rz-mb-3">
+            <RadzenLabel Text="Risk Rating" Component="RiskRating" />
+            <RadzenDropDown @bind-Value="_matter.RiskRating" Data="@MatterLists.Risks" Name="RiskRating" Style="width:100%" />
+        </div>
+
+        @if (!string.IsNullOrEmpty(_error))
+        {
+            <RadzenAlert AlertStyle="AlertStyle.Danger" Variant="Variant.Flat">@_error</RadzenAlert>
+        }
+
+        <RadzenStack Orientation="Orientation.Horizontal" Gap="0.5rem">
+            <RadzenButton ButtonType="ButtonType.Submit" Text="Create Matter" Disabled="@_saving" />
+            <RadzenButton Text="Cancel" ButtonStyle="ButtonStyle.Light" Click="@(() => Navigation.NavigateTo("matters"))" />
+        </RadzenStack>
+    </RadzenFieldset>
+</RadzenTemplateForm>
+
+@code {
+    [CascadingParameter] private Task<Microsoft.AspNetCore.Components.Authorization.AuthenticationState>? AuthStateTask { get; set; }
+
+    private string _currentUser = string.Empty;
+    private readonly Matter _matter = new()
+    {
+        DateOfCommencement = DateTime.UtcNow.Date,
+        ForumType = MatterLists.ForumTypes[0],
+        OurRole = MatterLists.Roles[0],
+        NatureOfMatter = MatterLists.Natures[0],
+        Currency = MatterLists.Currencies[0],
+        LikelihoodOfAdverseOutcome = MatterLists.Likelihoods[0],
+        StatusOfMatter = MatterLists.Statuses[0],
+        RiskRating = MatterLists.Risks[0],
+    };
+    private string? _error;
+    private bool _saving;
+
+    protected override async Task OnInitializedAsync()
+    {
+        if (AuthStateTask is not null)
+        {
+            var authState = await AuthStateTask;
+            _currentUser = authState.User.Identity?.Name ?? "unknown";
+        }
+    }
+
+    private async Task OnSubmitAsync()
+    {
+        _error = null;
+
+        if (string.IsNullOrWhiteSpace(_matter.EntityEmployer) || string.IsNullOrWhiteSpace(_matter.CauseNo))
+        {
+            _error = "Entity/Employer and Cause No. are required.";
+            return;
+        }
+
+        _saving = true;
+        try
+        {
+            var matter = await MatterService.CreateMatterAsync(_matter, _currentUser);
+            await Swal.FireAsync("Matter created", $"Matter {matter.MatterId} was created.", SweetAlertIcon.Success);
+            Navigation.NavigateTo($"matters/{matter.Id}");
+        }
+        catch (Exception ex)
+        {
+            _error = ex.Message;
+            await Swal.FireAsync("Could not create matter", ex.Message, SweetAlertIcon.Error);
+        }
+        finally
+        {
+            _saving = false;
+        }
+    }
+}

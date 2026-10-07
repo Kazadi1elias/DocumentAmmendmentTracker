@@ -1,0 +1,146 @@
+@page "/matters/{Id:int}/edit"
+@attribute [Authorize]
+@inject IMatterService MatterService
+@inject NavigationManager Navigation
+@inject SweetAlertService Swal
+@using DocumentAmendmentTracker.Web.Models
+
+<PageTitle>Edit Matter</PageTitle>
+
+@if (_matter is null)
+{
+    <p>Loading&hellip;</p>
+}
+else
+{
+    <h1>Edit @_matter.MatterId</h1>
+
+    <RadzenTemplateForm TItem="object" Data="@(new object())" Submit="@OnSubmitAsync">
+        <RadzenFieldset Text="Case details">
+            <div class="rz-mb-3">
+                <RadzenLabel Text="Status of Matter" Component="StatusOfMatter" />
+                <RadzenDropDown @bind-Value="_matter.StatusOfMatter" Data="@MatterLists.Statuses" Name="StatusOfMatter" Style="width:100%" />
+            </div>
+            <div class="rz-mb-3">
+                <RadzenLabel Text="Next Date" Component="NextDate" />
+                <RadzenDatePicker @bind-Value="_matter.NextDate" Name="NextDate" Style="width:100%" ShowTime="false" />
+            </div>
+            <div class="rz-mb-3">
+                <RadzenLabel Text="Next Step / Action" Component="NextStepAction" />
+                <RadzenTextArea @bind-Value="_matter.NextStepAction" Name="NextStepAction" Style="width:100%" Rows="2" />
+            </div>
+            <div class="rz-mb-3">
+                <RadzenLabel Text="Judge" Component="Judge" />
+                <RadzenTextBox @bind-Value="_matter.Judge" Name="Judge" Style="width:100%" />
+            </div>
+            <div class="rz-mb-3">
+                <RadzenLabel Text="Arbitrator / Mediator / Conciliator" Component="ArbitratorMediatorConciliator" />
+                <RadzenTextBox @bind-Value="_matter.ArbitratorMediatorConciliator" Name="ArbitratorMediatorConciliator" Style="width:100%" />
+            </div>
+            <div class="rz-mb-3">
+                <RadzenLabel Text="Estimated Legal Fees to Finalisation" Component="EstimatedLegalFeesToFinalisation" />
+                <RadzenNumeric @bind-Value="_matter.EstimatedLegalFeesToFinalisation" Name="EstimatedLegalFeesToFinalisation" Style="width:100%" />
+            </div>
+            <div class="rz-mb-3">
+                <RadzenLabel Text="Legal Fees Incurred to Date" Component="LegalFeesIncurredToDate" />
+                <RadzenNumeric @bind-Value="_matter.LegalFeesIncurredToDate" Name="LegalFeesIncurredToDate" Style="width:100%" />
+            </div>
+            <div class="rz-mb-3">
+                <RadzenLabel Text="Risk Rating" Component="RiskRating" />
+                <RadzenDropDown @bind-Value="_matter.RiskRating" Data="@MatterLists.Risks" Name="RiskRating" Style="width:100%" />
+            </div>
+            <div class="rz-mb-3">
+                <RadzenLabel Text="Last Activity Date" Component="LastActivityDate" />
+                <RadzenDatePicker @bind-Value="_matter.LastActivityDate" Name="LastActivityDate" Style="width:100%" />
+            </div>
+            <div class="rz-mb-3">
+                <RadzenLabel Text="Related / Consolidated With" Component="RelatedConsolidatedWith" />
+                <RadzenTextBox @bind-Value="_matter.RelatedConsolidatedWith" Name="RelatedConsolidatedWith" Style="width:100%" />
+            </div>
+            <div class="rz-mb-3">
+                <RadzenCheckBox @bind-Value="_matter.LeadMatterInGroup" Name="LeadMatterInGroup" />
+                <RadzenLabel Text="Lead Matter in Group" Component="LeadMatterInGroup" Style="margin-left:0.5rem" />
+            </div>
+            <div class="rz-mb-3">
+                <RadzenCheckBox @bind-Value="_matter.PrivilegedConfidential" Name="PrivilegedConfidential" />
+                <RadzenLabel Text="Privileged / Confidential" Component="PrivilegedConfidential" Style="margin-left:0.5rem" />
+            </div>
+        </RadzenFieldset>
+
+        <RadzenFieldset Text="Outcome &amp; closure" class="rz-mt-3">
+            <div class="rz-mb-3">
+                <RadzenLabel Text="Date Closed" Component="DateClosed" />
+                <RadzenDatePicker @bind-Value="_matter.DateClosed" Name="DateClosed" Style="width:100%" />
+            </div>
+            <div class="rz-mb-3">
+                <RadzenLabel Text="Outcome / Result" Component="OutcomeResult" />
+                <RadzenTextArea @bind-Value="_matter.OutcomeResult" Name="OutcomeResult" Style="width:100%" Rows="3" />
+            </div>
+            <div class="rz-mb-3">
+                <RadzenLabel Text="Post-Matter Review Status" Component="PostMatterReviewStatus" />
+                <RadzenDropDown @bind-Value="_matter.PostMatterReviewStatus" Data="@MatterLists.ReviewStatuses" Name="PostMatterReviewStatus" Style="width:100%" />
+            </div>
+            <div class="rz-mb-3">
+                <RadzenLabel Text="Post-Matter Review Date" Component="PostMatterReviewDate" />
+                <RadzenDatePicker @bind-Value="_matter.PostMatterReviewDate" Name="PostMatterReviewDate" Style="width:100%" />
+            </div>
+            <div class="rz-mb-3">
+                <RadzenLabel Text="Preventability Assessment" Component="PreventabilityAssessment" />
+                <RadzenDropDown @bind-Value="_matter.PreventabilityAssessment" Data="@MatterLists.Avoidabilities" Name="PreventabilityAssessment" Style="width:100%" />
+            </div>
+            <div class="rz-mb-3">
+                <RadzenLabel Text="Remarks" Component="Remarks" />
+                <RadzenTextArea @bind-Value="_matter.Remarks" Name="Remarks" Style="width:100%" Rows="3" />
+            </div>
+        </RadzenFieldset>
+
+        @if (!string.IsNullOrEmpty(_error))
+        {
+            <RadzenAlert AlertStyle="AlertStyle.Danger" Variant="Variant.Flat">@_error</RadzenAlert>
+        }
+
+        <RadzenStack Orientation="Orientation.Horizontal" Gap="0.5rem" class="rz-mt-3">
+            <RadzenButton ButtonType="ButtonType.Submit" Text="Save Changes" Disabled="@_saving" />
+            <RadzenButton Text="Cancel" ButtonStyle="ButtonStyle.Light" Click="@(() => Navigation.NavigateTo($"matters/{Id}"))" />
+        </RadzenStack>
+    </RadzenTemplateForm>
+}
+
+@code {
+    [Parameter] public int Id { get; set; }
+
+    private Matter? _matter;
+    private string? _error;
+    private bool _saving;
+
+    protected override async Task OnInitializedAsync()
+    {
+        _matter = await MatterService.GetMatterByIdAsync(Id);
+    }
+
+    private async Task OnSubmitAsync()
+    {
+        if (_matter is null)
+        {
+            return;
+        }
+
+        _error = null;
+        _saving = true;
+        try
+        {
+            await MatterService.UpdateMatterAsync(_matter);
+            await Swal.FireAsync("Matter updated", $"Matter {_matter.MatterId} was updated.", SweetAlertIcon.Success);
+            Navigation.NavigateTo($"matters/{Id}");
+        }
+        catch (Exception ex)
+        {
+            _error = ex.Message;
+            await Swal.FireAsync("Could not update matter", ex.Message, SweetAlertIcon.Error);
+        }
+        finally
+        {
+            _saving = false;
+        }
+    }
+}
